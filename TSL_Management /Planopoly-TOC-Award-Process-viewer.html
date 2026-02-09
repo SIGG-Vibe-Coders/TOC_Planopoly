@@ -1,0 +1,3654 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planopoly - Interactive Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.light-mode {
+            background: #f5e6d3;
+            color: #1e293b;
+        }
+
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: linear-gradient(180deg, #1e293b 0%, rgba(30, 41, 59, 0.95) 100%);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 110;
+            backdrop-filter: blur(8px);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.light-mode #header {
+            background: linear-gradient(180deg, #d9c9b0 0%, rgba(217, 201, 176, 0.95) 100%);
+            border-bottom: 1px solid rgba(30, 41, 59, 0.15);
+        }
+
+        #header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            transition: color 0.3s ease;
+        }
+
+        body.light-mode #header h1 {
+            color: #1e293b;
+        }
+
+        #header .subtitle {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-left: 12px;
+        }
+
+        body.light-mode #header .subtitle {
+            color: #64748b;
+        }
+
+        #header .controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .btn-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .btn-row {
+            display: flex;
+            flex-direction: row;
+            gap: 4px;
+        }
+
+        .btn-square {
+            width: 32px !important;
+            height: 32px !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem !important;
+        }
+
+        .header-logo {
+            height: 30px;
+            width: auto;
+            border: 2px solid #9ca3af;
+            border-radius: 4px;
+            margin-right: 12px;
+            vertical-align: middle;
+        }
+
+        /* Sun/Moon theme toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.7rem;
+        }
+
+        .theme-toggle .icon {
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+
+        .theme-toggle input {
+            display: none;
+        }
+
+        .theme-toggle .slider {
+            width: 32px;
+            height: 16px;
+            background: #cbd5e1;
+            border-radius: 8px;
+            position: relative;
+            transition: background 0.3s ease;
+        }
+
+        .theme-toggle .slider::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .theme-toggle input:checked + .slider {
+            background: #475569;
+        }
+
+        .theme-toggle input:checked + .slider::after {
+            transform: translateX(16px);
+        }
+
+        .settings-icon {
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            line-height: 1;
+        }
+
+        .settings-icon:hover {
+            opacity: 1;
+        }
+
+        /* Custom tooltips */
+        [data-tip] {
+            position: relative;
+        }
+
+        [data-tip]::after {
+            content: attr(data-tip);
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 6px;
+            background: rgba(15, 23, 42, 0.95);
+            color: #e2e8f0;
+            font-size: 0.65rem;
+            font-weight: 400;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 300;
+        }
+
+        body.light-mode [data-tip]::after {
+            background: rgba(30, 41, 59, 0.95);
+            color: #f1f5f9;
+        }
+
+        [data-tip]:hover::after {
+            opacity: 1;
+        }
+
+        #header button {
+            background: #334155;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            padding: 3px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.6rem;
+            transition: all 0.2s;
+        }
+
+        body.light-mode #header button {
+            background: #e8e4de;
+            border: 1px solid rgba(30, 41, 59, 0.2);
+            color: #1e293b;
+        }
+
+        #header button:hover {
+            background: #475569;
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        body.light-mode #header button:hover {
+            background: #d4d0c8;
+            border-color: rgba(30, 41, 59, 0.3);
+        }
+
+        #header button.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: #fff;
+        }
+
+        
+
+        #legend {
+            position: fixed;
+            top: 54px;
+            right: 16px;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 8px;
+            padding: 8px 10px;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            min-width: 140px;
+            max-height: calc(100vh - 70px);
+            overflow-y: auto;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.light-mode #legend {
+            background: rgba(217, 201, 176, 0.9);
+            border: 1px solid rgba(30, 41, 59, 0.15);
+        }
+
+        #legend h3 {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 5px;
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            margin: 1px 0;
+        }
+
+        body.light-mode .legend-item {
+            color: #475569;
+        }
+
+        .legend-item:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        body.light-mode .legend-item:hover {
+            background: rgba(30, 41, 59, 0.1);
+        }
+
+        .legend-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        body.light-mode .legend-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #2563eb;
+        }
+
+        .legend-item.dimmed {
+            opacity: 0.3;
+        }
+
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .legend-clear {
+            font-size: 0.6rem;
+            color: #64748b;
+            cursor: pointer;
+            text-align: center;
+            padding: 4px;
+            margin-top: 4px;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            transition: color 0.2s;
+        }
+
+        body.light-mode .legend-clear {
+            border-top: 1px solid rgba(30, 41, 59, 0.1);
+        }
+
+        .legend-clear:hover {
+            color: #94a3b8;
+        }
+
+        #sidepanel {
+            position: fixed;
+            top: 44px;
+            left: -320px;
+            width: 300px;
+            height: calc(100vh - 44px);
+            background: rgba(30, 41, 59, 0.98);
+            border-right: 1px solid rgba(148, 163, 184, 0.1);
+            z-index: 99;
+            backdrop-filter: blur(8px);
+            transition: left 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        body.light-mode #sidepanel {
+            background: rgba(217, 201, 176, 0.98);
+            border-right: 1px solid rgba(30, 41, 59, 0.15);
+        }
+
+        #sidepanel.open {
+            left: 0;
+        }
+
+        #sidepanel .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #sidepanel .close-btn:hover {
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
+        }
+
+        body.light-mode #sidepanel .close-btn:hover {
+            background: rgba(30, 41, 59, 0.1);
+            color: #475569;
+        }
+
+        #sidepanel h2 {
+            font-size: 1.125rem;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+            margin-right: 32px;
+            transition: color 0.3s ease;
+        }
+
+        body.light-mode #sidepanel h2 {
+            color: #1e293b;
+        }
+
+        #sidepanel .role-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            color: white;
+            font-weight: 500;
+        }
+
+        #sidepanel .description {
+            color: #cbd5e1;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            transition: color 0.3s ease;
+        }
+
+        body.light-mode #sidepanel .description {
+            color: #475569;
+        }
+
+        #sidepanel .section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        body.light-mode #sidepanel .section {
+            border-bottom: 1px solid rgba(30, 41, 59, 0.1);
+        }
+
+        #sidepanel .section:last-child {
+            border-bottom: none;
+        }
+
+        #sidepanel h3 {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        body.light-mode #sidepanel h3 {
+            color: #64748b;
+        }
+
+        #sidepanel .connection-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 4px 8px;
+            margin: 2px 0;
+            transition: all 0.2s;
+        }
+
+        body.light-mode #sidepanel .connection-item {
+            color: #475569;
+        }
+
+        #sidepanel .connection-item:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        body.light-mode #sidepanel .connection-item:hover {
+            background: rgba(30, 41, 59, 0.1);
+        }
+
+        #sidepanel .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        #sidepanel .resource-link {
+            display: block;
+            font-size: 0.8rem;
+            color: #60a5fa;
+            text-decoration: none;
+            padding: 6px 8px;
+            margin: 2px 0;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        body.light-mode #sidepanel .resource-link {
+            color: #2563eb;
+        }
+
+        #sidepanel .resource-link:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #93c5fd;
+        }
+
+        body.light-mode #sidepanel .resource-link:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #1d4ed8;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 6px;
+            padding: 4px 8px;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.light-mode #controls {
+            background: rgba(217, 201, 176, 0.9);
+            border: 1px solid rgba(30, 41, 59, 0.15);
+        }
+
+        #controls button {
+            background: #334155;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            padding: 2px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.5rem;
+            transition: all 0.2s;
+            line-height: 1.2;
+        }
+
+        body.light-mode #controls button {
+            background: #e8e4de;
+            border: 1px solid rgba(30, 41, 59, 0.2);
+            color: #1e293b;
+        }
+
+        #controls button:hover {
+            background: #475569;
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        body.light-mode #controls button:hover {
+            background: #d4d0c8;
+            border-color: rgba(30, 41, 59, 0.3);
+        }
+
+        #controls .zoom-info {
+            display: flex;
+            align-items: center;
+            color: #64748b;
+            font-size: 0.45rem;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100vh;
+            padding-top: 44px;
+            transition: padding-left 0.3s ease;
+        }
+
+        #canvas.panel-open {
+            padding-left: 300px;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: opacity 0.3s, transform 0.2s;
+        }
+
+        .node.dragging {
+            cursor: grabbing !important;
+        }
+
+        .node .node-shape {
+            stroke-width: 2;
+            transition: all 0.3s;
+        }
+
+        .node:hover .node-shape {
+            filter: brightness(1.2);
+        }
+
+        .node text {
+            font-size: 11px;
+            fill: #f8fafc;
+            text-anchor: middle;
+            pointer-events: none;
+            font-weight: 500;
+        }
+
+        body.light-mode .node text {
+            fill: #1e293b;
+        }
+
+        .node .role-badge {
+            font-size: 9px;
+            fill: rgba(248, 250, 252, 0.7);
+            font-weight: 400;
+        }
+
+        .link {
+            fill: none;
+            stroke-width: 2;
+            transition: opacity 0.3s, stroke-width 0.3s;
+            pointer-events: none;
+        }
+
+        .link.dimmed {
+            opacity: 0.1;
+        }
+
+        .link.highlighted {
+            stroke-width: 3;
+            opacity: 1;
+        }
+
+        .link.clickable {
+            pointer-events: stroke;
+            cursor: pointer;
+        }
+
+        .link.clickable:hover {
+            stroke-width: 4;
+            opacity: 0.8;
+        }
+
+        .link.selected-link {
+            stroke: #f97316;
+            stroke-width: 3;
+            opacity: 1;
+        }
+
+        
+
+        .node.dimmed {
+            opacity: 0.15;
+        }
+
+        .node.role-filtered {
+            opacity: 0.2;
+        }
+
+        .node.highlighted .node-shape {
+            stroke-width: 3;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .node.link-source .node-shape {
+            stroke-width: 4;
+            stroke: #f97316 !important;
+            filter: drop-shadow(0 0 12px #f97316);
+        }
+
+        #tooltip {
+            position: fixed;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, background 0.3s ease, border-color 0.3s ease;
+            z-index: 200;
+            max-width: 320px;
+            backdrop-filter: blur(8px);
+        }
+
+        body.light-mode #tooltip {
+            background: rgba(217, 201, 176, 0.98);
+            border: 1px solid rgba(30, 41, 59, 0.2);
+        }
+
+        #tooltip.visible {
+            opacity: 1;
+        }
+
+        #tooltip h4 {
+            font-size: 0.875rem;
+            color: #f1f5f9;
+            margin-bottom: 6px;
+        }
+
+        body.light-mode #tooltip h4 {
+            color: #1e293b;
+        }
+
+        #tooltip p {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        body.light-mode #tooltip p {
+            color: #64748b;
+        }
+
+        #tooltip .role {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            color: white;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 52px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #64748b;
+            font-size: 0.6rem;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.3;
+        }
+
+        
+
+        
+
+        /* Nav links panel */
+        #nav-links-panel {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 100;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 6px;
+            padding: 6px 8px;
+            backdrop-filter: blur(8px);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.light-mode #nav-links-panel {
+            background: rgba(217, 201, 176, 0.9);
+            border: 1px solid rgba(30, 41, 59, 0.15);
+        }
+
+        #nav-links-panel.hidden {
+            display: none;
+        }
+
+        #nav-links-panel .nav-link-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #334155;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        body.light-mode #nav-links-panel .nav-link-btn {
+            background: #e8e4de;
+            border: 1px solid rgba(30, 41, 59, 0.2);
+            color: #1e293b;
+        }
+
+        #nav-links-panel .nav-link-btn:hover {
+            background: #475569;
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        body.light-mode #nav-links-panel .nav-link-btn:hover {
+            background: #d4d0c8;
+            border-color: rgba(30, 41, 59, 0.3);
+        }
+
+        
+
+        
+
+        /* Temporary link line */
+        .temp-link {
+            stroke: #f97316;
+            stroke-width: 3;
+            stroke-dasharray: 8,4;
+            fill: none;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="light-mode" style="cursor: default;">
+    <div id="header">
+        <img src="https://mr-robotto-66.github.io/robotto/planopoly_logo.jpeg" alt="Planopoly" class="header-logo">
+        <div style="display: flex; align-items: baseline;">
+            <h1 id="main-title" contenteditable="false">Planopoly</h1>
+            <span class="subtitle" id="main-subtitle" contenteditable="false">TOC Award Process</span>
+        </div>
+        <div class="controls">
+            <label class="theme-toggle">
+                <span class="icon">☀️</span>
+                <input type="checkbox" id="theme-checkbox" onchange="toggleLightDarkMode(true)">
+                <span class="slider"></span>
+                <span class="icon">🌙</span>
+            </label>
+            <div class="btn-row">
+                
+                <button onclick="toggleDragMode()" id="drag-btn" class="btn-square active" data-tip="Drag nodes to reposition them (D)">Lock</button>
+            </div>
+            
+        </div>
+    </div>
+
+    
+
+    <!-- Dynamic Legend (rebuilt by rebuildLegend()) -->
+    <div id="legend"><h3>Responsibility or Process Description</h3><div class="legend-item" data-role="Engineering"><div class="legend-color" style="background: rgb(199, 194, 194);"></div>Engineering</div><div class="legend-item" data-role="LRM or Other Corp. Systems"><div class="legend-color" style="background: rgb(24, 192, 12);"></div>LRM or Other Corp. Systems</div><div class="legend-item" data-role="Development"><div class="legend-color" style="background: rgb(139, 92, 246);"></div>Development</div><div class="legend-item" data-role="Communication Point"><div class="legend-color" style="background: rgb(145, 114, 33);"></div>Communication Point</div><div class="legend-item" data-role="BA / Admin"><div class="legend-color" style="background: rgb(245, 237, 0);"></div>BA / Admin</div><div class="legend-item" data-role="TSL Award"><div class="legend-color" style="background: rgb(240, 165, 5);"></div>TSL Award</div><div class="legend-item" data-role="Other"><div class="legend-color" style="background: rgb(247, 247, 247);"></div>Other</div><div class="legend-clear">Clear Filter</div><h3 style="margin-top: 10px;">Process Types</h3><div class="legend-item" data-process-type="process"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="none" stroke="#94a3b8" stroke-width="0.8"></rect></svg>Process</div><div class="legend-item" data-process-type="document"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2,1.5"></rect></svg>Document</div><div class="legend-item" data-process-type="outside-process"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#94a3b8" stroke-width="0.8"></circle></svg>Outside Process</div><div class="legend-item" data-process-type="process-tbd"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2,1.5"></circle></svg>Process to be developed</div><div class="legend-item" data-process-type="queue"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><polygon points="1.5,1.5 10.5,1.5 6,10.5" fill="none" stroke="#94a3b8" stroke-width="0.8"></polygon></svg>Queue or Wait Period</div><div class="legend-item" data-process-type="corporate-accounting"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><polygon points="3,1.5 9,1.5 11.5,6 9,10.5 3,10.5 0.5,6" fill="none" stroke="#94a3b8" stroke-width="0.8"></polygon></svg>Process: Corporate Accounting Mandatory</div><div class="legend-item" data-process-type="records-management"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><polygon points="3,1.5 9,1.5 11.5,6 9,10.5 3,10.5 0.5,6" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2,1.5"></polygon></svg>Process: Records Management Protocol</div><div class="legend-item" data-process-type="decision"><svg viewBox="0 0 12 12" style="width: 20px; height: 20px; flex-shrink: 0;"><polygon points="6,1.5 10.5,6 6,10.5 1.5,6" fill="none" stroke="#94a3b8" stroke-width="0.8"></polygon></svg>Decision</div></div>
+
+    <!-- Side Panel for Detailed Information -->
+    <div id="sidepanel" class="">
+        <button class="close-btn" onclick="closeSidePanel()">×</button>
+        <div id="panel-content">
+                <h2>8a. Change of Plan Requested</h2>
+                <span class="role-badge" style="background: #917221">Communication Point</span>
+                <p class="description"></p>
+
+                <div class="section">
+                    <h3>Connected Activities (3)</h3>
+                    
+                        <div class="connection-item" onclick="highlightNode(61)">
+                            <div class="connection-dot" style="background: #2a8dcb"></div>
+                            <span>7. Inspections</span>
+                        </div>
+                    
+                        <div class="connection-item" onclick="highlightNode(64)">
+                            <div class="connection-dot" style="background: #917221"></div>
+                            <span>YES</span>
+                        </div>
+                    
+                        <div class="connection-item" onclick="highlightNode(65)">
+                            <div class="connection-dot" style="background: #917221"></div>
+                            <span>NO</span>
+                        </div>
+                    
+                </div>
+
+                <div class="section">
+                    <h3>Process Type</h3>
+                    <p>Decision</p>
+                </div>
+
+                
+            </div>
+    </div>
+
+    
+
+    <div id="controls">
+        <button onclick="zoomIn()">Zoom In (+)</button>
+        <button onclick="zoomOut()">Zoom Out (-)</button>
+        <button onclick="resetView()">Reset View</button>
+        <button onclick="clearSelection()">Clear Selection</button>
+        <div class="zoom-info">Scroll to zoom | Drag to pan</div>
+    </div>
+
+    <div class="instructions">
+        Click activities to see connections and details | Click legend roles to filter | Use drag mode to reposition nodes |
+        Edit mode: double-click to add, click two nodes to connect, right-click to edit/delete
+    </div>
+
+    <div id="tooltip" class="" style="left: 879px; top: 361px;">
+        <h4>18. WLS Fill Out Apportionment</h4>
+        <p>Fill out Apportionment on Mark Screen &amp; Commitment TAB in LRM</p>
+        <span class="role" style="background: rgb(24, 192, 12);">LRM or Other Corp. Systems</span>
+    </div>
+
+    <!-- Nav Links Panel -->
+    <div id="nav-links-panel" class="hidden"></div>
+
+    <!-- Annotation Context Menu -->
+    <div id="annotation-context-menu" style="display: none;"></div>
+
+    <div id="canvas" style="cursor: grab;" class=""></div>
+
+    <script>
+        // Storage key for localStorage
+        const STORAGE_KEY = 'planopoly-workflow-data';
+
+        // State management
+        let isDragMode = false;
+        let isEditMode = false;
+        let selectedRole = null;
+        let selectedProcessType = null;
+        let selectedNode = null;
+        let linkSourceNode = null; // For creating connections
+        let isLightMode = true;
+        let editingNodeId = null; // For modal
+        let editingLink = null; // For link editor popover
+
+        // Nav links
+        let navLinks = [];
+        const defaultNavLinks = [];
+
+        // Annotations
+        let annotations = [];
+        const defaultAnnotations = [];
+        let nextAnnotationId = 1;
+        let currentDrawTool = 'none';
+        let selectedAnnotation = null;
+        let drawingAnnotation = null; // in-progress annotation during drag-create
+
+        // State variables
+        let nodeWidth = 130;
+        let nodeHeight = 40;
+        let linkOpacity = 0.4;
+        let defaultZoomLevel = 0.47571475656301887;
+        let defaultPanX = 131.56287689132876;
+        let defaultPanY = 0.06907915023361966;
+
+        // Per-node dimension helpers (fall back to global defaults)
+        function getNodeW(node) { return node.width || nodeWidth; }
+        function getNodeH(node) { return node.height || nodeHeight; }
+
+        // Category labels (user-customizable)
+        let roleCategoryLabel = 'Responsibility or Process Description';
+        let processTypeCategoryLabel = 'Process Types';
+
+        // Role colors
+        let roleColors = {
+    "Engineering": "#c7c2c2",
+    "LRM or Other Corp. Systems": "#18c00c",
+    "Development": "#8b5cf6",
+    "Communication Point": "#917221",
+    "BA / Admin": "#f5ed00",
+    "TSL Award": "#f0a505",
+    "Other": "#f7f7f7"
+};
+
+        // Process types config
+        let processTypes = {
+    "process": {
+        "label": "Process",
+        "shape": "rect",
+        "dashed": false
+    },
+    "document": {
+        "label": "Document",
+        "shape": "rect",
+        "dashed": true
+    },
+    "outside-process": {
+        "label": "Outside Process",
+        "shape": "circle",
+        "dashed": false
+    },
+    "process-tbd": {
+        "label": "Process to be developed",
+        "shape": "circle",
+        "dashed": true
+    },
+    "queue": {
+        "label": "Queue or Wait Period",
+        "shape": "triangle",
+        "dashed": false
+    },
+    "corporate-accounting": {
+        "label": "Process: Corporate Accounting Mandatory",
+        "shape": "hexagon",
+        "dashed": false
+    },
+    "records-management": {
+        "label": "Process: Records Management Protocol",
+        "shape": "hexagon",
+        "dashed": true
+    },
+    "decision": {
+        "label": "Decision",
+        "shape": "diamond",
+        "dashed": false
+    }
+};
+
+        // Fixed link color
+        const linkColor = '#6b7280';
+
+        // Configuration constants
+        const CONFIG = {
+            SVG_WIDTH: 1900,
+            SVG_HEIGHT: 600,
+            ZOOM_SCALE_EXTENT: [0.3, 3],
+            BEZIER_OFFSET: { factor: 0.4, min: 30, max: 120 },
+            LINK_EDITOR: { width: 220, height: 100 },
+            NODE_FONT_SIZE: 11,
+            DASHED_STROKE: '6,3',
+            ARROW_MARKER_SIZE: 8,
+            THROTTLE_DELAY: 16.6, // 60fps
+            MESSAGES: {
+                SAVED: 'Data saved to browser storage!',
+                LOADED: 'Data loaded!',
+                RESET: 'Data reset to defaults',
+                EXPORT_SUCCESS: 'HTML file downloaded!'
+            }
+        };
+
+        // Utility functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function throttle(func, delay) {
+            let lastCall = 0;
+            return function(...args) {
+                const now = Date.now();
+                if (now - lastCall >= delay) {
+                    lastCall = now;
+                    return func.apply(this, args);
+                }
+            };
+        }
+
+        function safeLoadFromStorage(key, defaultValue) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultValue;
+            } catch (e) {
+                console.warn(`Failed to load ${key} from storage:`, e);
+                return defaultValue;
+            }
+        }
+
+        function safeSaveToStorage(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+                return true;
+            } catch (e) {
+                console.error(`Failed to save ${key} to storage:`, e);
+                return false;
+            }
+        }
+
+        // Default nodes data
+        const defaultNodes = [
+    {
+        "id": 1,
+        "name": "START TSL Award Process",
+        "role": "Other",
+        "processType": "process",
+        "x": -50,
+        "y": 250,
+        "desc": "Starting point",
+        "resources": [],
+        "width": 120,
+        "height": 40
+    },
+    {
+        "id": 2,
+        "name": "2. Hand-off Meeting with Development",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 110,
+        "y": 250,
+        "desc": "Inform special conditions. Safety form received from PRF;\nReview complete",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 3,
+        "name": "3. OPS TECH - Exhibit A",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 270,
+        "y": 250,
+        "desc": "Exhibit 'A' Submission (Blocks). Check external shape bdys & Ex A",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 4,
+        "name": "4. OPS TECH Communicates with BA",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 430,
+        "y": 250,
+        "desc": "Initiates TSL folder and Documents",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 5,
+        "name": "5. OPS TECH - Appraisal",
+        "role": "LRM or Other Corp. Systems",
+        "processType": "process",
+        "x": 588.6093139648438,
+        "y": 215.23194885253906,
+        "desc": "Complete or Review Appraisal in Cengea. Refer to SOP",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 6,
+        "name": "6. OPS TECH - Receives Rate",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 756.1815185546875,
+        "y": 216.00155639648438,
+        "desc": "Receives Preliminary Rate from Cengea",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 7,
+        "name": "7. PRF-Dev - Complete VCU",
+        "role": "Development",
+        "processType": "process",
+        "x": 931.4007568359375,
+        "y": 216.52418518066406,
+        "desc": "Complete Variable Cost (VCU) Calculator",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 8,
+        "name": "8. ECAS Peer Review",
+        "role": "TSL Award",
+        "processType": "records-management",
+        "x": 1116.9896850585938,
+        "y": 216.0949249267578,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 9,
+        "name": "9. Modified Rate Required?",
+        "role": "Communication Point",
+        "processType": "decision",
+        "x": 1294.6490478515625,
+        "y": 205.5185089111328,
+        "desc": "",
+        "resources": [],
+        "width": 130,
+        "height": 60
+    },
+    {
+        "id": 10,
+        "name": "10. ECAS OPS TECH Submits Appraisal to Region",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 1548.6697998046875,
+        "y": 215.5362091064453,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 11,
+        "name": "11. Approved?",
+        "role": "Communication Point",
+        "processType": "decision",
+        "x": 1739.3677978515625,
+        "y": 206.24317932128906,
+        "desc": "",
+        "resources": [],
+        "width": 130,
+        "height": 60
+    },
+    {
+        "id": 12,
+        "name": "12. Rate Received by submitter",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 1982.745849609375,
+        "y": 216.214111328125,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 13,
+        "name": "13. Check FTA To Ensure Exhibit 'A' Cleared by District (Blocks)",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 2169.21337890625,
+        "y": 213.3842315673828,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 14,
+        "name": "14. OPS TECH Build TSL & Safety Highlights Document",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 2356.0028076171875,
+        "y": 213.09420776367188,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 15,
+        "name": "15. PRF works with IRL",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 2530.2279052734375,
+        "y": 211.06251525878906,
+        "desc": "Check that Consultation Summary & Due Diligence are completed",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 16,
+        "name": "16. OPS TECH Notify WLS of TSL Doc readiness",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 2357.8499755859375,
+        "y": 332.57623291015625,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 17,
+        "name": "17. WLS completes TSL Review",
+        "role": "TSL Award",
+        "processType": "document",
+        "x": 2358.8660888671875,
+        "y": 451.4160461425781,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 18,
+        "name": "18. WLS Fill Out Apportionment",
+        "role": "LRM or Other Corp. Systems",
+        "processType": "process",
+        "x": 2359.627685546875,
+        "y": 561.8319702148438,
+        "desc": "Fill out Apportionment on Mark Screen & Commitment TAB in LRM",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 19,
+        "name": "19. WLS completes TSL Request to Post Form & sends to BA",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 2361.048828125,
+        "y": 662.5172729492188,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 20,
+        "name": "20. TSL Tender Completion & BA Peer Review",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 2360.5152587890625,
+        "y": 767.5498657226562,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 21,
+        "name": "21. BA notifies WLS that TSL Docs are prepared for posting",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 2169.66650390625,
+        "y": 768.1993408203125,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 22,
+        "name": "22. WLS completes final TSL Review & advises approval for posting",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 2169.6668701171875,
+        "y": 659.8756713867188,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 23,
+        "name": "23. Post to BC Bid Site",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 2169.378173828125,
+        "y": 559.8363647460938,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 24,
+        "name": "24. Receive/ Review Enquiries",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 2171.1334228515625,
+        "y": 452.2855529785156,
+        "desc": "All must be sent to\n \nTOC.TIMBERAUCTIONS@gov.bc.ca\n\nNo Direct Responses",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 25,
+        "name": "25. Amendment Required? (WLS)",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1956.7261962890625,
+        "y": 401.3883056640625,
+        "desc": "",
+        "resources": [],
+        "width": 130,
+        "height": 60
+    },
+    {
+        "id": 26,
+        "name": "26. Tender Opening Process",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 1666.8504638671875,
+        "y": 508.447998046875,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 27,
+        "name": "27. High Bidder Eligible?",
+        "role": "BA / Admin",
+        "processType": "decision",
+        "x": 1409.2601318359375,
+        "y": 513.7131958007812,
+        "desc": "",
+        "resources": [],
+        "width": 130,
+        "height": 60
+    },
+    {
+        "id": 28,
+        "name": "28. Bid Accepted",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 1151.7095947265625,
+        "y": 503.1827392578125,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 29,
+        "name": "29. Admin Updates (LRM, FTA, BC Admin)",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 961.2439575195312,
+        "y": 502.1614074707031,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 30,
+        "name": "30. Award Letter & TSL Sent to Licensee for signature, security",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 770.9601440429688,
+        "y": 502.16143798828125,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 31,
+        "name": "31. Signature & Security",
+        "role": "BA / Admin",
+        "processType": "queue",
+        "x": 605.8947143554688,
+        "y": 492.5981140136719,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": 60
+    },
+    {
+        "id": 32,
+        "name": "32. TSL (& RP) Issued, TSM Signs",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 442.4883728027344,
+        "y": 501.65185546875,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 33,
+        "name": "33. ECAS 2nd Pass",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 263.55140686035156,
+        "y": 503.10333251953125,
+        "desc": "Update Bonus Bid & Sale Term",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 34,
+        "name": "END Post Award Hand Over",
+        "role": "Other",
+        "processType": "process",
+        "x": 93.03418350219727,
+        "y": 503.1033020019531,
+        "desc": "End point",
+        "resources": [],
+        "width": 120,
+        "height": 40
+    },
+    {
+        "id": 100,
+        "name": "3a. ET Exhibit 'A' Submission for ROAD PERMIT",
+        "role": "Engineering",
+        "processType": "process",
+        "x": 270,
+        "y": 120,
+        "desc": "Provide Reference # to OPS TECH",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 101,
+        "name": "5a. Multiphase Contractor",
+        "role": "Other",
+        "processType": "process",
+        "x": 590,
+        "y": 112.06595611572266,
+        "desc": "inputs initial Appraisal info",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 102,
+        "name": "5b. OPS TECH - Communicate changes with Dev",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 588.3066711425781,
+        "y": 349.2310791015625,
+        "desc": "Communication with Development regarding any Changes Req'd",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 103,
+        "name": "9a. MODIFIED RATE Approval Process",
+        "role": "TSL Award",
+        "processType": "records-management",
+        "x": 1293.5349731445312,
+        "y": 14.039623260498047,
+        "desc": "- Complete Rationale for Approval of Modified Stumpage Rate (FS1374)\n(e.g., Lump Sum, VCU Rate, Exec. Dir. Rate)\n-Attach VCU Calculation Form (if applicable)\n-Provide Forms to WLS\n-Submit to Executive Director",
+        "resources": [],
+        "width": 170,
+        "height": 80
+    },
+    {
+        "id": 104,
+        "name": "YES",
+        "role": "Communication Point",
+        "processType": "decision",
+        "x": 1294.252685546875,
+        "y": 138.18622589111328,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 105,
+        "name": "NO",
+        "role": "Communication Point",
+        "processType": "decision",
+        "x": 1422.09716796875,
+        "y": 221.09335327148438,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 106,
+        "name": "Executive Director Approval",
+        "role": "Other",
+        "processType": "outside-process",
+        "x": 1549.183837890625,
+        "y": 23.968682289123535,
+        "desc": "",
+        "resources": [],
+        "width": 130,
+        "height": 60
+    },
+    {
+        "id": 107,
+        "name": "YES",
+        "role": "Communication Point",
+        "processType": "decision",
+        "x": 1862.9373779296875,
+        "y": 221.09132385253906,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 108,
+        "name": "NO",
+        "role": "Communication Point",
+        "processType": "decision",
+        "x": 1738.398193359375,
+        "y": 300.7611541748047,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 109,
+        "name": "11a. Make Changes to Appraisal in ECAS",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 1548.59619140625,
+        "y": 296.8482360839844,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 110,
+        "name": "12a. Ops Tech Saves ECAS Rate e-mail on TSL File",
+        "role": "TSL Award",
+        "processType": "document",
+        "x": 1983.4998779296875,
+        "y": 290.7259979248047,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 111,
+        "name": "13a. ET to check RRS",
+        "role": "Engineering",
+        "processType": "process",
+        "x": 2169.6407470703125,
+        "y": 123.62287139892578,
+        "desc": " Ensure RP Exhibit 'A' Is cleared by District",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 112,
+        "name": "14a. ET builds Road Permit and RUP Documents",
+        "role": "Engineering",
+        "processType": "process",
+        "x": 2356.580810546875,
+        "y": 105.36605453491211,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 113,
+        "name": "25a. Prepare Amendment (BA)",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 1958.4813232421875,
+        "y": 558.0812072753906,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 114,
+        "name": "YES",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1956.7261962890625,
+        "y": 496.3655090332031,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 115,
+        "name": "NO",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1819.339111328125,
+        "y": 512.1218566894531,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 116,
+        "name": "NO BIDS",
+        "role": "BA / Admin",
+        "processType": "decision",
+        "x": 1667.256591796875,
+        "y": 597.7538452148438,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 117,
+        "name": "Bids",
+        "role": "BA / Admin",
+        "processType": "decision",
+        "x": 1547.2565307617188,
+        "y": 513.7132263183594,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 118,
+        "name": "26a. BA LRM Update: 'No Bid Sale'",
+        "role": "LRM or Other Corp. Systems",
+        "processType": "process",
+        "x": 1667.256591796875,
+        "y": 674.774169921875,
+        "desc": "Licence Activity; 'No Bid Sale'",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 119,
+        "name": "26b. Meet w/ WLS, Review TSL Options",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 1667.2567138671875,
+        "y": 764.0800170898438,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 120,
+        "name": "26c. Re-Offer?",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1667.6627807617188,
+        "y": 851.8338623046875,
+        "desc": "",
+        "resources": [],
+        "width": 110,
+        "height": 60
+    },
+    {
+        "id": 121,
+        "name": "Do Not Proceed to Sale Process",
+        "role": "Development",
+        "processType": "process-tbd",
+        "x": 1919.56005859375,
+        "y": 857.5123901367188,
+        "desc": "",
+        "resources": [],
+        "width": 50,
+        "height": 50
+    },
+    {
+        "id": 122,
+        "name": "NO",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1787.3233032226562,
+        "y": 868.1680908203125,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 123,
+        "name": "YES",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1544.2959594726562,
+        "y": 867.1692504882812,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 124,
+        "name": "26d. Re-Work of Development Deliverables Requ'd?",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1402.5374145507812,
+        "y": 833.7562866210938,
+        "desc": "",
+        "resources": [],
+        "width": 160,
+        "height": 100
+    },
+    {
+        "id": 125,
+        "name": "NO",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1255.71142578125,
+        "y": 867.0651245117188,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 126,
+        "name": "YES",
+        "role": "TSL Award",
+        "processType": "decision",
+        "x": 1402.5374145507812,
+        "y": 964.7550659179688,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 127,
+        "name": "26e. Communication with Development re: Amendments / Changes",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 1402.1209106445312,
+        "y": 1028.0639038085938,
+        "desc": "",
+        "resources": [],
+        "width": 150,
+        "height": null
+    },
+    {
+        "id": 128,
+        "name": "Development",
+        "role": "Development",
+        "processType": "outside-process",
+        "x": 1562.8991088867188,
+        "y": 1027.0072021484375,
+        "desc": "",
+        "resources": [],
+        "width": 40,
+        "height": 40
+    },
+    {
+        "id": 129,
+        "name": "26f. Communication: WLS notifies TSM",
+        "role": "Communication Point",
+        "processType": "process",
+        "x": 1119.6759033203125,
+        "y": 762.549072265625,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 130,
+        "name": "26g. Update Rate",
+        "role": "TSL Award",
+        "processType": "process",
+        "x": 1121.4344482421875,
+        "y": 861.8935546875,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 131,
+        "name": "Go To Step 20",
+        "role": "Other",
+        "processType": "process",
+        "x": 923.4013366699219,
+        "y": 861.8934936523438,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 132,
+        "name": "27a. TSM Discretion; Reviews Options",
+        "role": "Other",
+        "processType": "decision",
+        "x": 1411.0152587890625,
+        "y": 371.0609436035156,
+        "desc": "",
+        "resources": [],
+        "width": 130,
+        "height": 60
+    },
+    {
+        "id": 133,
+        "name": "(YES) Eligible",
+        "role": "Other",
+        "processType": "decision",
+        "x": 1152.3643798828125,
+        "y": 377.0203857421875,
+        "desc": "",
+        "resources": [],
+        "width": 50,
+        "height": 50
+    },
+    {
+        "id": 134,
+        "name": "(NO) Ineligible",
+        "role": "Other",
+        "processType": "decision",
+        "x": 1667.911376953125,
+        "y": 378.0812072753906,
+        "desc": "",
+        "resources": [],
+        "width": 50,
+        "height": 50
+    },
+    {
+        "id": 135,
+        "name": "28a. Sales Record email to TOC & DM",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 1152.0952758789062,
+        "y": 589.2575073242188,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 136,
+        "name": "29a. BA LRM Update",
+        "role": "LRM or Other Corp. Systems",
+        "processType": "corporate-accounting",
+        "x": 961.2439575195312,
+        "y": 609.2575073242188,
+        "desc": "Set Auction Status to Done\n\nIn Lic. Activities Tab, Set Auction Status to Done",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 137,
+        "name": "32a. Systems Update",
+        "role": "BA / Admin",
+        "processType": "process",
+        "x": 441.9306335449219,
+        "y": 588.8964233398438,
+        "desc": "-Systems Update\n-E-mail Licencee & Ops Tech issuance documents\n-Silviculture Tech notified",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 138,
+        "name": "32b. BA LRM Update",
+        "role": "LRM or Other Corp. Systems",
+        "processType": "corporate-accounting",
+        "x": 444.03407287597656,
+        "y": 675.2067260742188,
+        "desc": "Lic. Issued Date & Lic. Expiry Date",
+        "resources": [],
+        "width": null,
+        "height": null
+    },
+    {
+        "id": 139,
+        "name": "Issues",
+        "role": "LRM or Other Corp. Systems",
+        "processType": "process",
+        "x": 588.6606482012191,
+        "y": 294.5164478779134,
+        "desc": "",
+        "resources": [],
+        "width": 40,
+        "height": 20
+    },
+    {
+        "id": 140,
+        "name": "YES",
+        "role": "BA / Admin",
+        "processType": "decision",
+        "x": 1278.431258864401,
+        "y": 506.81719970703125,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 141,
+        "name": "NO",
+        "role": "BA / Admin",
+        "processType": "decision",
+        "x": 1410.0620270139354,
+        "y": 455.9199523925781,
+        "desc": "",
+        "resources": [],
+        "width": 30,
+        "height": 30
+    },
+    {
+        "id": 142,
+        "name": "Do not Proceed to Sale Process",
+        "role": "BA / Admin",
+        "processType": "process-tbd",
+        "x": 1562.3343156866933,
+        "y": 570,
+        "desc": "",
+        "resources": [],
+        "width": null,
+        "height": null
+    }
+];
+        // Default links
+        const defaultLinks = [
+    {
+        "source": 1,
+        "target": 2,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 2,
+        "target": 3,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 3,
+        "target": 4,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 4,
+        "target": 5,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 5,
+        "target": 6,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 8,
+        "target": 9,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 9,
+        "target": 104,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 9,
+        "target": 105,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 104,
+        "target": 103,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 103,
+        "target": 106,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 105,
+        "target": 10,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 106,
+        "target": 10,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 10,
+        "target": 11,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 11,
+        "target": 107,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 11,
+        "target": 108,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 107,
+        "target": 12,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 108,
+        "target": 109,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 109,
+        "target": 10,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 12,
+        "target": 13,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 12,
+        "target": 110,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 13,
+        "target": 14,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 13,
+        "target": 111,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 14,
+        "target": 15,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 14,
+        "target": 16,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 16,
+        "target": 17,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 17,
+        "target": 18,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 18,
+        "target": 19,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 19,
+        "target": 20,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 21,
+        "target": 22,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 22,
+        "target": 23,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 23,
+        "target": 24,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 24,
+        "target": 25,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 25,
+        "target": 114,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 25,
+        "target": 115,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 114,
+        "target": 113,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 115,
+        "target": 26,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 26,
+        "target": 116,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 28,
+        "target": 135,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 28,
+        "target": 29,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 29,
+        "target": 136,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 29,
+        "target": 30,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 30,
+        "target": 31,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 31,
+        "target": 32,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 32,
+        "target": 137,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 32,
+        "target": 33,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 33,
+        "target": 34,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 3,
+        "target": 100,
+        "arrowMode": "reverse"
+    },
+    {
+        "source": 5,
+        "target": 101,
+        "arrowMode": "reverse"
+    },
+    {
+        "source": 116,
+        "target": 118,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 118,
+        "target": 119,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 119,
+        "target": 120,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 120,
+        "target": 122,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 120,
+        "target": 123,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 122,
+        "target": 121,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 123,
+        "target": 124,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 124,
+        "target": 125,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 124,
+        "target": 126,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 126,
+        "target": 127,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 130,
+        "target": 131,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 113,
+        "target": 23,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 5,
+        "target": 139,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 139,
+        "target": 102,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 6,
+        "target": 7,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 7,
+        "target": 8,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 15,
+        "target": 17,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 14,
+        "target": 112,
+        "arrowMode": "both"
+    },
+    {
+        "source": 20,
+        "target": 21,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 134,
+        "target": 26,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 132,
+        "target": 134,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 132,
+        "target": 133,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 133,
+        "target": 28,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 27,
+        "target": 140,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 140,
+        "target": 28,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 26,
+        "target": 117,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 117,
+        "target": 27,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 27,
+        "target": 141,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 141,
+        "target": 132,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 127,
+        "target": 128,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 125,
+        "target": 130,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 130,
+        "target": 129,
+        "arrowMode": "forward"
+    },
+    {
+        "source": 137,
+        "target": 138,
+        "arrowMode": "forward"
+    }
+];
+
+        // Working data (will be loaded from localStorage or defaults)
+        let nodes = [];
+        let links = [];
+
+        // Node map and adjacency
+        let nodeMap = new Map();
+        let adjacency = new Map();
+
+        function rebuildMaps() {
+            nodeMap = new Map(nodes.map(n => [n.id, n]));
+            adjacency = new Map();
+            nodes.forEach(n => adjacency.set(n.id, new Set()));
+            links.forEach(l => {
+                if (adjacency.has(l.source) && adjacency.has(l.target)) {
+                    adjacency.get(l.source).add(l.target);
+                    adjacency.get(l.target).add(l.source);
+                }
+            });
+        }
+
+        // Smart text splitting for multi-line node labels
+        function splitTextSmart(text, maxLines = 3) {
+            const words = text.split(' ');
+            if (words.length === 1) {
+                return [text];
+            }
+            if (words.length === 2) {
+                return words;
+            }
+            const totalLength = text.length;
+            const targetLineLength = totalLength / Math.min(words.length, maxLines);
+            const lines = [];
+            let currentLine = '';
+            for (const word of words) {
+                if (lines.length >= maxLines - 1) {
+                    currentLine = currentLine ? currentLine + ' ' + word : word;
+                } else if (!currentLine) {
+                    currentLine = word;
+                } else if ((currentLine + ' ' + word).length <= targetLineLength + 4) {
+                    currentLine += ' ' + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+            return lines;
+        }
+
+        // SVG Setup
+        const width = CONFIG.SVG_WIDTH;
+        const height = CONFIG.SVG_HEIGHT;
+
+        const svg = d3.select('#canvas')
+            .append('svg')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
+
+        const g = svg.append('g');
+
+        // Arrow marker definitions for connection lines
+        const defs = svg.append('defs');
+
+        // Forward arrow (at target end)
+        defs.append('marker')
+            .attr('id', 'arrow-forward')
+            .attr('viewBox', '0 0 8 8')
+            .attr('refX', 8).attr('refY', 4)
+            .attr('markerWidth', 8).attr('markerHeight', 8)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M 0,0 L 8,4 L 0,8 Z')
+            .attr('fill', linkColor);
+
+        // Reverse arrow (at source end) — points opposite direction
+        defs.append('marker')
+            .attr('id', 'arrow-reverse')
+            .attr('viewBox', '0 0 8 8')
+            .attr('refX', 0).attr('refY', 4)
+            .attr('markerWidth', 8).attr('markerHeight', 8)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M 8,0 L 0,4 L 8,8 Z')
+            .attr('fill', linkColor);
+
+        // Highlighted forward arrow
+        defs.append('marker')
+            .attr('id', 'arrow-forward-highlighted')
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 10).attr('refY', 5)
+            .attr('markerWidth', 10).attr('markerHeight', 10)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M 0,0 L 10,5 L 0,10 Z')
+            .attr('fill', '#94a3b8');
+
+        // Highlighted reverse arrow
+        defs.append('marker')
+            .attr('id', 'arrow-reverse-highlighted')
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 0).attr('refY', 5)
+            .attr('markerWidth', 10).attr('markerHeight', 10)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M 10,0 L 0,5 L 10,10 Z')
+            .attr('fill', '#94a3b8');
+
+        // Dimmed forward arrow
+        defs.append('marker')
+            .attr('id', 'arrow-forward-dimmed')
+            .attr('viewBox', '0 0 8 8')
+            .attr('refX', 8).attr('refY', 4)
+            .attr('markerWidth', 8).attr('markerHeight', 8)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M 0,0 L 8,4 L 0,8 Z')
+            .attr('fill', linkColor)
+            .attr('opacity', 0.15);
+
+        // Dimmed reverse arrow
+        defs.append('marker')
+            .attr('id', 'arrow-reverse-dimmed')
+            .attr('viewBox', '0 0 8 8')
+            .attr('refX', 0).attr('refY', 4)
+            .attr('markerWidth', 8).attr('markerHeight', 8)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M 8,0 L 0,4 L 8,8 Z')
+            .attr('fill', linkColor)
+            .attr('opacity', 0.15);
+
+        // Temporary link line for creating connections
+        const tempLinkLine = g.append('line')
+            .attr('class', 'temp-link')
+            .style('display', 'none');
+
+        const zoom = d3.zoom()
+            .scaleExtent(CONFIG.ZOOM_SCALE_EXTENT)
+            .on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
+        svg.on('dblclick.zoom', null);
+
+        // Click/double-click on background
+        svg.on('click', (event) => {
+            if (event.target === svg.node() || event.target.closest('.annotation-layer')) {
+                closeAnnotationContextMenu();
+                if (editingLink) {
+                    closeLinkEditor();
+                    return;
+                }
+                if (currentDrawTool !== 'none' && currentDrawTool !== 'select') return;
+                if (linkSourceNode) {
+                    cancelLinkCreation();
+                }
+                if (currentDrawTool === 'select' && !event.target.closest('.annotation')) {
+                    deselectAnnotation();
+                }
+                clearSelection();
+                closeSidePanel();
+            }
+        });
+
+        svg.on('dblclick', (event) => {
+            if (!isEditMode) return;
+            if (currentDrawTool !== 'none') return; // suppress node creation in draw mode
+            if (event.target !== svg.node()) return;
+            event.preventDefault();
+
+            // Get coordinates in SVG space
+            const transform = d3.zoomTransform(svg.node());
+            const pt = svg.node().createSVGPoint();
+            pt.x = event.clientX;
+            pt.y = event.clientY;
+            const svgP = pt.matrixTransform(svg.node().getScreenCTM().inverse());
+            const x = (svgP.x - transform.x) / transform.k;
+            const y = (svgP.y - transform.y) / transform.k;
+
+            // Create new node at click position
+            createNewNode(x, y);
+        });
+
+        // Helper: get SVG coordinates from mouse event
+        function getSVGCoords(event) {
+            const transform = d3.zoomTransform(svg.node());
+            const pt = svg.node().createSVGPoint();
+            pt.x = event.clientX;
+            pt.y = event.clientY;
+            const svgP = pt.matrixTransform(svg.node().getScreenCTM().inverse());
+            return {
+                x: (svgP.x - transform.x) / transform.k,
+                y: (svgP.y - transform.y) / transform.k
+            };
+        }
+
+        // Mouse move for temp link line + drawing
+        svg.on('mousemove', (event) => {
+            // Temp link line
+            if (linkSourceNode) {
+                const { x, y } = getSVGCoords(event);
+                const sourceNode = nodeMap.get(linkSourceNode);
+                tempLinkLine
+                    .attr('x1', sourceNode.x)
+                    .attr('y1', sourceNode.y + getNodeH(sourceNode) / 2)
+                    .attr('x2', x)
+                    .attr('y2', y);
+            }
+
+            // Drawing preview
+            if (drawingAnnotation) {
+                const { x, y } = getSVGCoords(event);
+                handleDrawMouseMove(x, y);
+            }
+        });
+
+        // Mousedown for drawing annotations
+        svg.on('mousedown', (event) => {
+            if (!isEditMode) return;
+            if (currentDrawTool === 'none' || currentDrawTool === 'select') return;
+            if (event.target !== svg.node() && !event.target.closest('.annotation-layer')) return;
+            if (event.button !== 0) return;
+
+            const { x, y } = getSVGCoords(event);
+            handleDrawMouseDown(x, y, event);
+        });
+
+        // Mouseup for drawing annotations
+        svg.on('mouseup', (event) => {
+            if (drawingAnnotation) {
+                const { x, y } = getSVGCoords(event);
+                handleDrawMouseUp(x, y);
+            }
+        });
+
+        function initVisualization() {
+            // Clear existing
+            g.selectAll('.annotation-layer').remove();
+            g.selectAll('.link').remove();
+            g.selectAll('.node').remove();
+
+            // Annotation layer goes behind links and nodes
+            g.append('g').attr('class', 'annotation-layer');
+
+            drawAnnotations();
+            drawLinks();
+            drawNodes();
+        }
+
+        // Anchor calculation cache for performance
+        let anchorCache = new Map();
+
+        function clearAnchorCache() {
+            anchorCache = new Map();
+        }
+
+        function calculateOptimalAnchors(sourceNode, targetNode) {
+            // Check cache first
+            const cacheKey = `${sourceNode.id}-${targetNode.id}-${sourceNode.x}-${sourceNode.y}-${targetNode.x}-${targetNode.y}`;
+            if (anchorCache.has(cacheKey)) {
+                return anchorCache.get(cacheKey);
+            }
+
+            const sides = ['top', 'bottom', 'left', 'right'];
+            let minDistance = Infinity;
+            let bestAnchors = { source: 'right', target: 'left' };
+
+            for (const sourceSide of sides) {
+                for (const targetSide of sides) {
+                    const sourcePoint = getAnchorPoint(sourceNode, sourceSide);
+                    const targetPoint = getAnchorPoint(targetNode, targetSide);
+                    const distance = Math.hypot(targetPoint.x - sourcePoint.x, targetPoint.y - sourcePoint.y);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestAnchors = { source: sourceSide, target: targetSide };
+                    }
+                }
+            }
+
+            // Cache the result
+            anchorCache.set(cacheKey, bestAnchors);
+            return bestAnchors;
+        }
+
+        function getAnchorPoint(node, anchor) {
+            const w = getNodeW(node);
+            const h = getNodeH(node);
+            const centerX = node.x;
+            const centerY = node.y + h / 2;
+            const pt = processTypes[node.processType] || processTypes['process'];
+
+            if (pt.shape === 'circle') {
+                // Circle: radius = h, centered at (centerX, centerY)
+                const r = h;
+                switch(anchor) {
+                    case 'top':    return { x: centerX, y: centerY - r };
+                    case 'bottom': return { x: centerX, y: centerY + r };
+                    case 'left':   return { x: centerX - r, y: centerY };
+                    case 'right':  return { x: centerX + r, y: centerY };
+                    default:       return { x: centerX + r, y: centerY };
+                }
+            }
+
+            if (pt.shape === 'triangle') {
+                // Triangle: flat top from (centerX - w/2, topY) to (centerX + w/2, topY), point at (centerX, bottomY)
+                // At center height, the triangle edge is at ±w/4 from centerX
+                const topY = node.y;
+                const bottomY = node.y + h;
+                switch(anchor) {
+                    case 'top':    return { x: centerX, y: topY };
+                    case 'bottom': return { x: centerX, y: bottomY };
+                    case 'left':   return { x: centerX - w/4, y: centerY };
+                    case 'right':  return { x: centerX + w/4, y: centerY };
+                    default:       return { x: centerX + w/4, y: centerY };
+                }
+            }
+
+            // Rect, diamond, hexagon: use bounding box
+            switch(anchor) {
+                case 'top':    return { x: centerX, y: node.y };
+                case 'bottom': return { x: centerX, y: node.y + h };
+                case 'left':   return { x: centerX - w/2, y: centerY };
+                case 'right':  return { x: centerX + w/2, y: centerY };
+                default:       return { x: centerX + w/2, y: centerY };
+            }
+        }
+
+        function getControlPoints(sourcePoint, targetPoint, sourceAnchor, targetAnchor) {
+            const dx = targetPoint.x - sourcePoint.x;
+            const dy = targetPoint.y - sourcePoint.y;
+            let cp1x, cp1y, cp2x, cp2y;
+            const baseOffset = Math.min(Math.abs(dx) * CONFIG.BEZIER_OFFSET.factor, Math.abs(dy) * CONFIG.BEZIER_OFFSET.factor, CONFIG.BEZIER_OFFSET.max);
+            const offset = Math.max(baseOffset, CONFIG.BEZIER_OFFSET.min);
+
+            switch(sourceAnchor) {
+                case 'top': cp1x = sourcePoint.x; cp1y = sourcePoint.y - offset; break;
+                case 'bottom': cp1x = sourcePoint.x; cp1y = sourcePoint.y + offset; break;
+                case 'left': cp1x = sourcePoint.x - offset; cp1y = sourcePoint.y; break;
+                default: cp1x = sourcePoint.x + offset; cp1y = sourcePoint.y; break;
+            }
+
+            switch(targetAnchor) {
+                case 'top': cp2x = targetPoint.x; cp2y = targetPoint.y - offset; break;
+                case 'bottom': cp2x = targetPoint.x; cp2y = targetPoint.y + offset; break;
+                case 'left': cp2x = targetPoint.x - offset; cp2y = targetPoint.y; break;
+                default: cp2x = targetPoint.x + offset; cp2y = targetPoint.y; break;
+            }
+
+            return { cp1x, cp1y, cp2x, cp2y };
+        }
+
+        function createBezierPath(d) {
+            const source = nodeMap.get(d.source);
+            const target = nodeMap.get(d.target);
+            if (!source || !target) return '';
+
+            const { source: sourceAnchor, target: targetAnchor } = calculateOptimalAnchors(source, target);
+            const sourcePoint = getAnchorPoint(source, sourceAnchor);
+            const targetPoint = getAnchorPoint(target, targetAnchor);
+            const { cp1x, cp1y, cp2x, cp2y } = getControlPoints(sourcePoint, targetPoint, sourceAnchor, targetAnchor);
+
+            return `M ${sourcePoint.x},${sourcePoint.y} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${targetPoint.x},${targetPoint.y}`;
+        }
+
+        function applyLinkMarkers(selection, suffix) {
+            const sfx = suffix ? '-' + suffix : '';
+            selection.each(function(d) {
+                const el = d3.select(this);
+                const mode = d.arrowMode || 'none';
+                el.attr('marker-end', (mode === 'forward' || mode === 'both') ? `url(#arrow-forward${sfx})` : null);
+                el.attr('marker-start', (mode === 'reverse' || mode === 'both') ? `url(#arrow-reverse${sfx})` : null);
+            });
+        }
+
+        function drawLinks() {
+            const linkElements = g.selectAll('.link')
+                .data(links, d => `${d.source}-${d.target}`)
+                .join('path')
+                .attr('class', d => 'link' + (isEditMode ? ' clickable' : ''))
+                .attr('d', createBezierPath)
+                .attr('stroke', linkColor)
+                .attr('opacity', linkOpacity)
+                .on('click', isEditMode ? handleLinkClick : null);
+
+            applyLinkMarkers(linkElements, '');
+
+            window.linkElements = linkElements;
+        }
+
+        function appendNodeShape(selection) {
+            selection.each(function(d) {
+                const group = d3.select(this);
+                const pt = processTypes[d.processType] || processTypes['process'];
+                const color = roleColors[d.role] || '#64748b';
+                const fill = color + '33';
+                const w = getNodeW(d);
+                const h = getNodeH(d);
+                let el;
+
+                switch (pt.shape) {
+                    case 'rect':
+                        el = group.append('rect')
+                            .attr('width', w)
+                            .attr('height', h)
+                            .attr('rx', 8)
+                            .attr('ry', 8);
+                        break;
+                    case 'circle': {
+                        // Radius = h so the circle is visually proportional to rectangles
+                        const r = h;
+                        el = group.append('circle')
+                            .attr('cx', w / 2)
+                            .attr('cy', h / 2)
+                            .attr('r', r);
+                        break;
+                    }
+                    case 'triangle':
+                        el = group.append('polygon')
+                            .attr('points', `0,0 ${w},0 ${w/2},${h}`);
+                        break;
+                    case 'hexagon': {
+                        const inset = w * 0.2;
+                        el = group.append('polygon')
+                            .attr('points', `${inset},0 ${w - inset},0 ${w},${h/2} ${w - inset},${h} ${inset},${h} 0,${h/2}`);
+                        break;
+                    }
+                    case 'diamond':
+                        el = group.append('polygon')
+                            .attr('points', `${w/2},0 ${w},${h/2} ${w/2},${h} 0,${h/2}`);
+                        break;
+                    default:
+                        el = group.append('rect')
+                            .attr('width', w)
+                            .attr('height', h)
+                            .attr('rx', 8)
+                            .attr('ry', 8);
+                }
+
+                el.attr('class', 'node-shape')
+                    .attr('fill', fill)
+                    .attr('stroke', color);
+
+                if (pt.dashed) {
+                    el.attr('stroke-dasharray', CONFIG.DASHED_STROKE);
+                }
+            });
+        }
+
+        function drawNodes() {
+            const nodeElements = g.selectAll('.node')
+                .data(nodes, d => d.id)
+                .join('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.x - getNodeW(d)/2}, ${d.y})`)
+                .on('click', handleNodeClick)
+                .on('contextmenu', handleNodeRightClick)
+                .on('mouseenter', handleNodeHover)
+                .on('mouseleave', handleNodeLeave);
+
+            // Drag behavior
+            const throttledLinkUpdate = throttle(() => {
+                if (window.linkElements) {
+                    window.linkElements.attr('d', createBezierPath);
+                }
+            }, CONFIG.THROTTLE_DELAY);
+
+            const drag = d3.drag()
+                .on('start', function(event, d) {
+                    if (isDragMode) {
+                        d3.select(this).classed('dragging', true);
+                        d3.select('body').style('cursor', 'grabbing');
+                    }
+                })
+                .on('drag', function(event, d) {
+                    if (isDragMode) {
+                        d.x = event.x;
+                        d.y = event.y;
+                        d3.select(this).attr('transform', `translate(${d.x - getNodeW(d)/2}, ${d.y})`);
+                        throttledLinkUpdate();
+                    }
+                })
+                .on('end', function(event, d) {
+                    if (isDragMode) {
+                        d3.select(this).classed('dragging', false);
+                        d3.select('body').style('cursor', 'default');
+                        clearAnchorCache();
+                        // Final update to ensure links are accurate
+                        if (window.linkElements) {
+                            window.linkElements.attr('d', createBezierPath);
+                        }
+                    }
+                });
+
+            nodeElements.call(drag);
+
+            // Remove old shapes/text
+            nodeElements.selectAll('.node-shape').remove();
+            nodeElements.selectAll('text').remove();
+
+            appendNodeShape(nodeElements);
+
+            const textElements = nodeElements.append('text')
+                .attr('x', function(d) { return getNodeW(d) / 2; });
+
+            textElements.each(function(d) {
+                const w = getNodeW(d);
+                const h = getNodeH(d);
+                const lines = splitTextSmart(d.name, 3);
+                const lineCount = lines.length;
+                const pt = processTypes[d.processType] || processTypes['process'];
+                const lineHeight = 12;
+                const totalTextHeight = lineCount * lineHeight;
+                // Triangle (flat top): align text near the top edge where it's widest
+                const startY = pt.shape === 'triangle'
+                    ? lineHeight
+                    : (h - totalTextHeight) / 2 + lineHeight * 0.8;
+
+                const el = d3.select(this);
+                lines.forEach((line, i) => {
+                    el.append('tspan')
+                        .attr('x', w / 2)
+                        .attr('y', startY + i * lineHeight)
+                        .text(line);
+                });
+            });
+
+            window.nodeElements = nodeElements;
+        }
+
+        // ==================== VIEWER STUBS (overridden in edit mode) ====================
+        // These no-op stubs let view-mode code reference edit functions without errors.
+        // The real implementations follow inside the EDIT-ONLY block below.
+        function toggleEditMode() {}
+        function toggleSettings() {}
+        function closeLinkEditor() {}
+        function cancelLinkCreation() {}
+        function closeNodeModal() {}
+        function deselectAnnotation() {}
+        function closeAnnotationContextMenu() {}
+        function setDrawTool() {}
+        function handleDrawMouseDown() {}
+        function handleDrawMouseMove() {}
+        function handleDrawMouseUp() {}
+        function selectAnnotation() {}
+        function addResizeHandle() {}
+        function openAnnotationContextMenu() {}
+        function saveToLocalStorage() {}
+        function loadFromLocalStorage() { return false; }
+        function handleLinkClick() {}
+        function handleNodeRightClick() {}
+
+        
+
+        // ==================== LEGEND AND FILTERING ====================
+
+        function createLegendShapeSVG(shape, dashed) {
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('viewBox', '0 0 12 12');
+            svg.style.width = '20px';
+            svg.style.height = '20px';
+            svg.style.flexShrink = '0';
+
+            let el;
+            switch (shape) {
+                case 'rect':
+                    el = document.createElementNS(svgNS, 'rect');
+                    el.setAttribute('x', '1.5');
+                    el.setAttribute('y', '1.5');
+                    el.setAttribute('width', '9');
+                    el.setAttribute('height', '9');
+                    el.setAttribute('rx', '2');
+                    break;
+                case 'circle':
+                    el = document.createElementNS(svgNS, 'circle');
+                    el.setAttribute('cx', '6');
+                    el.setAttribute('cy', '6');
+                    el.setAttribute('r', '4.5');
+                    break;
+                case 'triangle':
+                    el = document.createElementNS(svgNS, 'polygon');
+                    el.setAttribute('points', '1.5,1.5 10.5,1.5 6,10.5');
+                    break;
+                case 'hexagon':
+                    el = document.createElementNS(svgNS, 'polygon');
+                    el.setAttribute('points', '3,1.5 9,1.5 11.5,6 9,10.5 3,10.5 0.5,6');
+                    break;
+                case 'diamond':
+                    el = document.createElementNS(svgNS, 'polygon');
+                    el.setAttribute('points', '6,1.5 10.5,6 6,10.5 1.5,6');
+                    break;
+                default:
+                    el = document.createElementNS(svgNS, 'rect');
+                    el.setAttribute('x', '1.5');
+                    el.setAttribute('y', '1.5');
+                    el.setAttribute('width', '9');
+                    el.setAttribute('height', '9');
+                    el.setAttribute('rx', '2');
+            }
+
+            el.setAttribute('fill', 'none');
+            el.setAttribute('stroke', '#94a3b8');
+            el.setAttribute('stroke-width', '0.8');
+            if (dashed) {
+                el.setAttribute('stroke-dasharray', '2,1.5');
+            }
+
+            svg.appendChild(el);
+            return svg;
+        }
+
+        function rebuildLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+
+            // Role header
+            const roleH3 = document.createElement('h3');
+            roleH3.textContent = roleCategoryLabel;
+            legend.appendChild(roleH3);
+
+            // Role items
+            Object.keys(roleColors).forEach(role => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.setAttribute('data-role', role);
+
+                const colorDiv = document.createElement('div');
+                colorDiv.className = 'legend-color';
+                colorDiv.style.background = roleColors[role];
+                item.appendChild(colorDiv);
+
+                item.appendChild(document.createTextNode(role));
+
+                item.addEventListener('click', function() {
+                    toggleRoleFilter(role);
+                });
+
+                legend.appendChild(item);
+            });
+
+            // Clear filter button
+            const clearDiv = document.createElement('div');
+            clearDiv.className = 'legend-clear';
+            clearDiv.textContent = 'Clear Filter';
+            clearDiv.addEventListener('click', clearRoleFilter);
+            legend.appendChild(clearDiv);
+
+            // Process type header
+            const ptH3 = document.createElement('h3');
+            ptH3.style.marginTop = '10px';
+            ptH3.textContent = processTypeCategoryLabel;
+            legend.appendChild(ptH3);
+
+            // Process type items
+            Object.keys(processTypes).forEach(key => {
+                const pt = processTypes[key];
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.setAttribute('data-process-type', key);
+
+                item.appendChild(createLegendShapeSVG(pt.shape, pt.dashed));
+                item.appendChild(document.createTextNode(pt.label));
+
+                item.addEventListener('click', function() {
+                    toggleProcessTypeFilter(key);
+                });
+
+                legend.appendChild(item);
+            });
+        }
+
+        function setupLegend() {
+            rebuildLegend();
+        }
+
+        function clearLegendHighlights() {
+            document.querySelectorAll('.legend-item').forEach(item => {
+                item.classList.remove('active', 'dimmed');
+            });
+            window.nodeElements.classed('role-filtered', false);
+            window.linkElements.attr('opacity', linkOpacity);
+        }
+
+        function toggleRoleFilter(role) {
+            // Clear any process type filter first
+            selectedProcessType = null;
+
+            if (selectedRole === role) {
+                selectedRole = null;
+                clearLegendHighlights();
+            } else {
+                selectedRole = role;
+                document.querySelectorAll('.legend-item').forEach(item => {
+                    const itemRole = item.getAttribute('data-role');
+                    if (itemRole === role) {
+                        item.classList.add('active');
+                        item.classList.remove('dimmed');
+                    } else {
+                        item.classList.remove('active');
+                        item.classList.add('dimmed');
+                    }
+                });
+
+                window.nodeElements.classed('role-filtered', d => d.role !== role);
+                window.linkElements.attr('opacity', d => {
+                    const sourceNode = nodeMap.get(d.source);
+                    const targetNode = nodeMap.get(d.target);
+                    return (sourceNode && sourceNode.role === role) || (targetNode && targetNode.role === role) ? 0.8 : 0.1;
+                });
+                rebuildMaps();
+            }
+        }
+
+        function toggleProcessTypeFilter(pt) {
+            // Clear any role filter first
+            selectedRole = null;
+
+            if (selectedProcessType === pt) {
+                selectedProcessType = null;
+                clearLegendHighlights();
+            } else {
+                selectedProcessType = pt;
+                document.querySelectorAll('.legend-item').forEach(item => {
+                    const itemPt = item.getAttribute('data-process-type');
+                    if (itemPt === pt) {
+                        item.classList.add('active');
+                        item.classList.remove('dimmed');
+                    } else {
+                        item.classList.remove('active');
+                        item.classList.add('dimmed');
+                    }
+                });
+
+                window.nodeElements.classed('role-filtered', d => (d.processType || 'process') !== pt);
+                window.linkElements.attr('opacity', d => {
+                    const sourceNode = nodeMap.get(d.source);
+                    const targetNode = nodeMap.get(d.target);
+                    const srcMatch = sourceNode && (sourceNode.processType || 'process') === pt;
+                    const tgtMatch = targetNode && (targetNode.processType || 'process') === pt;
+                    return srcMatch || tgtMatch ? 0.8 : 0.1;
+                });
+                rebuildMaps();
+            }
+        }
+
+        function clearRoleFilter() {
+            selectedRole = null;
+            selectedProcessType = null;
+            clearLegendHighlights();
+        }
+
+        // ==================== SIDE PANEL ====================
+
+        function showSidePanel(nodeData) {
+            const panel = document.getElementById('sidepanel');
+            const content = document.getElementById('panel-content');
+
+            const connected = adjacency.get(nodeData.id) || new Set();
+            const connectedNodes = Array.from(connected).map(id => nodeMap.get(id)).filter(Boolean);
+
+            const resources = nodeData.resources || [];
+
+            // Clear existing content
+            content.innerHTML = '';
+
+            // Create header with node name (safe from XSS)
+            const h2 = document.createElement('h2');
+            h2.textContent = nodeData.name;
+            content.appendChild(h2);
+
+            // Create role badge
+            const roleBadge = document.createElement('span');
+            roleBadge.className = 'role-badge';
+            roleBadge.style.background = roleColors[nodeData.role];
+            roleBadge.textContent = nodeData.role;
+            content.appendChild(roleBadge);
+
+            // Create description
+            const description = document.createElement('p');
+            description.className = 'description';
+            description.textContent = nodeData.desc;
+            content.appendChild(description);
+
+            // Create connected activities section
+            const connectedSection = document.createElement('div');
+            connectedSection.className = 'section';
+            const connectedH3 = document.createElement('h3');
+            connectedH3.textContent = `Connected Activities (${connectedNodes.length})`;
+            connectedSection.appendChild(connectedH3);
+
+            connectedNodes.forEach(node => {
+                const item = document.createElement('div');
+                item.className = 'connection-item';
+                item.onclick = () => highlightNode(node.id);
+
+                const dot = document.createElement('div');
+                dot.className = 'connection-dot';
+                dot.style.background = roleColors[node.role];
+                item.appendChild(dot);
+
+                const span = document.createElement('span');
+                span.textContent = node.name;
+                item.appendChild(span);
+
+                connectedSection.appendChild(item);
+            });
+            content.appendChild(connectedSection);
+
+            // Create process type section
+            const processSection = document.createElement('div');
+            processSection.className = 'section';
+            const processH3 = document.createElement('h3');
+            processH3.textContent = 'Process Type';
+            processSection.appendChild(processH3);
+            const processP = document.createElement('p');
+            processP.textContent = (processTypes[nodeData.processType] || processTypes['process']).label;
+            processSection.appendChild(processP);
+            content.appendChild(processSection);
+
+            // Create resources section if resources exist
+            if (resources.length > 0) {
+                const resourcesSection = document.createElement('div');
+                resourcesSection.className = 'section';
+                const resourcesH3 = document.createElement('h3');
+                resourcesH3.textContent = 'Additional Resources';
+                resourcesSection.appendChild(resourcesH3);
+
+                resources.forEach(r => {
+                    if (typeof r === 'object' && r.text) {
+                        if (r.url) {
+                            const href = r.url.match(/^https?:\/\/|^file:\/\//) ? r.url : 'https://' + r.url;
+                            const link = document.createElement('a');
+                            link.href = href;
+                            link.className = 'resource-link';
+                            link.target = '_blank';
+                            link.rel = 'noopener';
+                            link.textContent = '• ' + r.text;
+                            resourcesSection.appendChild(link);
+                        } else {
+                            const span = document.createElement('span');
+                            span.className = 'resource-link';
+                            span.textContent = '• ' + r.text;
+                            resourcesSection.appendChild(span);
+                        }
+                    } else {
+                        const label = typeof r === 'string' ? r : (r.text || r.url || '');
+                        const span = document.createElement('span');
+                        span.className = 'resource-link';
+                        span.textContent = '• ' + label;
+                        resourcesSection.appendChild(span);
+                    }
+                });
+
+                content.appendChild(resourcesSection);
+            }
+
+            panel.classList.add('open');
+            document.getElementById('canvas').classList.add('panel-open');
+        }
+
+        function closeSidePanel() {
+            document.getElementById('sidepanel').classList.remove('open');
+            document.getElementById('canvas').classList.remove('panel-open');
+        }
+
+        function highlightNode(nodeId) {
+            const nodeData = nodeMap.get(nodeId);
+            if (nodeData) handleNodeClick(null, nodeData);
+        }
+
+        // ==================== NODE INTERACTION ====================
+
+        function handleNodeClick(event, d) {
+            if (event) event.stopPropagation();
+
+            // Suppress node interactions in draw tool mode (except 'none' and 'select')
+            if (isEditMode && currentDrawTool !== 'none' && currentDrawTool !== 'select') return;
+
+            // In edit mode with link creation active
+            if (isEditMode && currentDrawTool === 'none' && linkSourceNode) {
+                completeLinkCreation(d.id);
+                return;
+            }
+
+            // In edit mode, start link creation
+            if (isEditMode && currentDrawTool === 'none' && !linkSourceNode) {
+                startLinkCreation(d.id);
+                return;
+            }
+
+            if (isDragMode) return;
+
+            if (selectedNode === d.id) {
+                clearSelection();
+                closeSidePanel();
+                return;
+            }
+
+            selectedNode = d.id;
+            const connected = adjacency.get(d.id) || new Set();
+
+            window.nodeElements
+                .classed('dimmed', n => n.id !== d.id && !connected.has(n.id))
+                .classed('highlighted', n => n.id === d.id);
+
+            window.linkElements
+                .classed('dimmed', l => l.source !== d.id && l.target !== d.id)
+                .classed('highlighted', l => l.source === d.id || l.target === d.id);
+
+            // Update arrow markers for highlight/dim states
+            window.linkElements.each(function(l) {
+                const el = d3.select(this);
+                const isConnected = l.source === d.id || l.target === d.id;
+                const suffix = isConnected ? 'highlighted' : 'dimmed';
+                const mode = l.arrowMode || 'none';
+                el.attr('marker-end', (mode === 'forward' || mode === 'both') ? `url(#arrow-forward-${suffix})` : null);
+                el.attr('marker-start', (mode === 'reverse' || mode === 'both') ? `url(#arrow-reverse-${suffix})` : null);
+            });
+
+            showSidePanel(d);
+        }
+
+        const tooltip = d3.select('#tooltip');
+
+        function handleNodeHover(event, d) {
+            if (isDragMode || isEditMode) return;
+
+            tooltip.select('h4').text(d.name);
+            tooltip.select('p').text(d.desc);
+            tooltip.select('.role')
+                .text(d.role)
+                .style('background', roleColors[d.role]);
+
+            tooltip
+                .style('left', (event.pageX + 15) + 'px')
+                .style('top', (event.pageY - 10) + 'px')
+                .classed('visible', true);
+        }
+
+        function handleNodeLeave() {
+            tooltip.classed('visible', false);
+        }
+
+        // ==================== MODE TOGGLES ====================
+
+        function toggleDragMode() {
+            isDragMode = !isDragMode;
+            const btn = document.getElementById('drag-btn');
+
+            if (isDragMode) {
+                btn.textContent = 'Lock';
+                btn.classList.add('active');
+                document.getElementById('canvas').style.cursor = 'grab';
+                if (isEditMode) toggleEditMode();
+            } else {
+                btn.textContent = 'Drag';
+                btn.classList.remove('active');
+                document.getElementById('canvas').style.cursor = 'default';
+            }
+        }
+
+        function updateMarkerColors() {
+            const color = isLightMode ? '#4b5563' : linkColor;
+            const highlightColor = isLightMode ? '#1e293b' : '#94a3b8';
+            defs.select('#arrow-forward path').attr('fill', color);
+            defs.select('#arrow-reverse path').attr('fill', color);
+            defs.select('#arrow-forward-highlighted path').attr('fill', highlightColor);
+            defs.select('#arrow-reverse-highlighted path').attr('fill', highlightColor);
+            defs.select('#arrow-forward-dimmed path').attr('fill', color);
+            defs.select('#arrow-reverse-dimmed path').attr('fill', color);
+        }
+
+        function toggleLightDarkMode(fromCheckbox) {
+            const checkbox = document.getElementById('theme-checkbox');
+            if (!fromCheckbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+            isLightMode = !checkbox.checked;
+
+            if (isLightMode) {
+                document.body.classList.add('light-mode');
+            } else {
+                document.body.classList.remove('light-mode');
+            }
+            updateMarkerColors();
+        }
+
+        
+
+        function clearSelection() {
+            selectedNode = null;
+            if (window.nodeElements) {
+                window.nodeElements.classed('dimmed', false).classed('highlighted', false);
+                window.linkElements.classed('dimmed', false).classed('highlighted', false);
+                // Reset arrow markers to normal
+                applyLinkMarkers(window.linkElements, '');
+            }
+        }
+
+        
+
+        // ==================== NAV LINKS ====================
+
+        function rebuildNavLinks() {
+            const panel = document.getElementById('nav-links-panel');
+            panel.innerHTML = '';
+
+            const hasLinks = navLinks.length > 0;
+            const showPanel = hasLinks || isEditMode;
+            panel.classList.toggle('hidden', !showPanel);
+
+            navLinks.forEach((nl, index) => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.gap = '4px';
+
+                const btn = document.createElement('button');
+                btn.className = 'nav-link-btn';
+                btn.textContent = nl.label || 'Link';
+                btn.style.flex = '1';
+                btn.onclick = () => {
+                    if (!isEditMode) {
+                        window.open(nl.url, '_blank');
+                    }
+                };
+                row.appendChild(btn);
+
+                if (isEditMode) {
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'nav-link-delete';
+                    editBtn.textContent = '\u270E';
+                    editBtn.title = 'Edit';
+                    editBtn.onclick = () => editNavLink(index);
+                    row.appendChild(editBtn);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'nav-link-delete';
+                    delBtn.textContent = '\u00d7';
+                    delBtn.title = 'Delete';
+                    delBtn.onclick = () => deleteNavLink(index);
+                    row.appendChild(delBtn);
+                }
+
+                panel.appendChild(row);
+            });
+
+            if (isEditMode) {
+                const addBtn = document.createElement('button');
+                addBtn.className = 'nav-link-add';
+                addBtn.textContent = '+ Add Nav Link';
+                addBtn.onclick = addNavLink;
+                panel.appendChild(addBtn);
+            }
+        }
+
+        
+
+        // ==================== ANNOTATIONS ====================
+
+        
+
+        function drawAnnotations() {
+            const layer = g.select('.annotation-layer');
+            if (!layer.node()) return;
+
+            const groups = layer.selectAll('.annotation')
+                .data(annotations, d => d.id);
+
+            groups.exit().remove();
+
+            const enter = groups.enter().append('g')
+                .attr('class', 'annotation');
+
+            const merged = enter.merge(groups);
+
+            merged.each(function(d) {
+                const group = d3.select(this);
+                group.selectAll('*').remove();
+
+                const dashArray = d.dashed ? '8,4' : null;
+
+                switch (d.type) {
+                    case 'line': {
+                        const el = group.append('line')
+                            .attr('x1', d.x).attr('y1', d.y)
+                            .attr('x2', d.x2).attr('y2', d.y2)
+                            .attr('stroke', d.stroke)
+                            .attr('stroke-width', d.strokeWidth)
+                            .attr('opacity', d.opacity);
+                        if (dashArray) el.attr('stroke-dasharray', dashArray);
+                        break;
+                    }
+                    case 'rect': {
+                        const el = group.append('rect')
+                            .attr('x', d.x).attr('y', d.y)
+                            .attr('width', d.width).attr('height', d.height)
+                            .attr('fill', 'none')
+                            .attr('stroke', d.stroke)
+                            .attr('stroke-width', d.strokeWidth)
+                            .attr('opacity', d.opacity);
+                        if (dashArray) el.attr('stroke-dasharray', dashArray);
+                        break;
+                    }
+                    case 'circle': {
+                        const el = group.append('circle')
+                            .attr('cx', d.x).attr('cy', d.y)
+                            .attr('r', d.radius)
+                            .attr('fill', 'none')
+                            .attr('stroke', d.stroke)
+                            .attr('stroke-width', d.strokeWidth)
+                            .attr('opacity', d.opacity);
+                        if (dashArray) el.attr('stroke-dasharray', dashArray);
+                        break;
+                    }
+                    case 'text':
+                        group.append('text')
+                            .attr('x', d.x).attr('y', d.y)
+                            .attr('fill', d.stroke)
+                            .attr('font-size', d.fontSize || 14)
+                            .attr('opacity', d.opacity)
+                            .text(d.text || '');
+                        break;
+                }
+
+                // Selection outline
+                if (selectedAnnotation === d.id) {
+                    const bbox = group.node().getBBox();
+                    group.append('rect')
+                        .attr('class', 'annotation-selection-outline')
+                        .attr('x', bbox.x - 3).attr('y', bbox.y - 3)
+                        .attr('width', bbox.width + 6).attr('height', bbox.height + 6)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#f97316')
+                        .attr('stroke-width', 1)
+                        .attr('stroke-dasharray', '4,2')
+                        .attr('pointer-events', 'none');
+
+                    // Resize handles
+                    if (d.type === 'rect') {
+                        addResizeHandle(group, d, bbox.x, bbox.y, 'nw');
+                        addResizeHandle(group, d, bbox.x + bbox.width, bbox.y, 'ne');
+                        addResizeHandle(group, d, bbox.x, bbox.y + bbox.height, 'sw');
+                        addResizeHandle(group, d, bbox.x + bbox.width, bbox.y + bbox.height, 'se');
+                    } else if (d.type === 'circle') {
+                        addResizeHandle(group, d, d.x + d.radius, d.y, 'radius');
+                    } else if (d.type === 'line') {
+                        addResizeHandle(group, d, d.x, d.y, 'start');
+                        addResizeHandle(group, d, d.x2, d.y2, 'end');
+                    }
+                }
+
+                // Click to select in select mode
+                group.on('click', function(event) {
+                    if (currentDrawTool === 'select') {
+                        event.stopPropagation();
+                        selectAnnotation(d.id);
+                    }
+                });
+
+                // Right-click context menu
+                group.on('contextmenu', function(event) {
+                    if (isEditMode) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        selectAnnotation(d.id);
+                        openAnnotationContextMenu(event, d);
+                    }
+                });
+
+                // Drag to move in select mode
+                if (currentDrawTool === 'select') {
+                    const drag = d3.drag()
+                        .on('start', function(event) {
+                            event.sourceEvent.stopPropagation();
+                        })
+                        .on('drag', function(event) {
+                            if (selectedAnnotation !== d.id) return;
+                            const dx = event.dx;
+                            const dy = event.dy;
+                            d.x += dx;
+                            d.y += dy;
+                            if (d.type === 'line') {
+                                d.x2 += dx;
+                                d.y2 += dy;
+                            }
+                            drawAnnotations();
+                        });
+                    group.call(drag);
+                }
+            });
+        }
+
+        
+
+        // ==================== ZOOM ====================
+
+        function zoomIn() {
+            svg.transition().duration(300).call(zoom.scaleBy, 1.3);
+        }
+
+        function zoomOut() {
+            svg.transition().duration(300).call(zoom.scaleBy, 0.7);
+        }
+
+        function resetView() {
+            svg.transition().duration(500).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(defaultPanX, defaultPanY).scale(defaultZoomLevel)
+            );
+        }
+
+        // ==================== INITIALIZATION ====================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to load from localStorage first
+            if (!loadFromLocalStorage()) {
+                // Use defaults
+                nodes = JSON.parse(JSON.stringify(defaultNodes));
+                links = JSON.parse(JSON.stringify(defaultLinks));
+                navLinks = JSON.parse(JSON.stringify(defaultNavLinks));
+                annotations = JSON.parse(JSON.stringify(defaultAnnotations));
+                nextAnnotationId = annotations.reduce((max, a) => Math.max(max, a.id || 0), 0) + 1;
+                rebuildMaps();
+                initVisualization();
+            }
+
+            setupLegend();
+            rebuildNavLinks();
+            updateMarkerColors();
+            svg.call(zoom.transform, d3.zoomIdentity.translate(defaultPanX, defaultPanY).scale(defaultZoomLevel));
+
+            // Close link editor / annotation context menu on outside click
+            document.addEventListener('click', (e) => {
+                if (editingLink && !e.target.closest('#link-editor') && !e.target.closest('.link')) {
+                    closeLinkEditor();
+                }
+                if (!e.target.closest('#annotation-context-menu') && !e.target.closest('.annotation')) {
+                    closeAnnotationContextMenu();
+                }
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+            if (e.key === 'Escape') {
+                
+                {
+                    clearSelection();
+                    closeSidePanel();
+                }
+            }
+            
+            if (e.key === '+' || e.key === '=') zoomIn();
+            if (e.key === '-') zoomOut();
+            if (e.key === '0') resetView();
+            if (e.key === 'd' || e.key === 'D') toggleDragMode();
+            if (e.key === 'l' || e.key === 'L') toggleLightDarkMode();
+            
+        });
+    </script>
+
+</body></html>
